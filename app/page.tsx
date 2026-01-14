@@ -1,23 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { LucideIcon, TrendingUp, TrendingDown, Minus, Info, Mail, Bell, ShieldCheck } from 'lucide-react';
+import { LucideIcon, TrendingUp, TrendingDown, Minus, Info, Mail, Bell, ShieldCheck, RefreshCw } from 'lucide-react';
 
 /**
- * METAL SNIPER - NEXT.JS DASHBOARD & CRON LOGIC
- * * SETUP INSTRUCTIONS:
- * 1. Create a free account at https://twelvedata.com to get your API Key.
- * 2. Create a free account at https://resend.com to get your Email API Key.
- * 3. Add the following to your Vercel Environment Variables (.env.local):
- * - TWELVE_DATA_API_KEY=your_key_here
- * - RESEND_API_KEY=re_your_key_here
- * - CRON_SECRET=a_random_string_of_your_choice
- * - RECEIVER_EMAIL=your_email@gmail.com
- * * 4. To automate emails, add this to your vercel.json:
- * { "crons": [{ "path": "/api/cron", "schedule": "0 4 * * 1" }] } // Runs Mon 8AM Dubai
+ * METAL SNIPER v2.0 - LIVE DASHBOARD
+ * Now includes real-time data fetching from your API routes.
  */
 
-// Types for our Signal Logic
 type SignalType = 'GREEN' | 'YELLOW' | 'RED';
 
 interface MetalSignal {
@@ -25,23 +15,16 @@ interface MetalSignal {
   name: string;
   price: number;
   rsi: number;
-  rollingHigh: number; // Now represents 20-Day High
+  rollingHigh: number;
   signal: SignalType;
   action: string;
   reason: string;
   color: string;
 }
 
-/**
- * Decision Engine Logic - Expert Market Thresholds v2.0
- * 🟢 GREEN: RSI <= 40 AND Dip >= 6% (from 20-day high)
- * 🟡 YELLOW: RSI 41-64 AND Dip 2-5.9%
- * 🔴 RED: RSI >= 65 OR Dip < 2%
- */
 const getSignalData = (symbol: string, name: string, price: number, rsi: number, high20Day: number): MetalSignal => {
   const dip = ((high20Day - price) / high20Day) * 100;
 
-  // 🟢 GREEN: Meaningful Dip (RSI <= 40 && Dip >= 6%)
   if (rsi <= 40 && dip >= 6) {
     return {
       symbol, name, price, rsi, rollingHigh: high20Day,
@@ -52,8 +35,6 @@ const getSignalData = (symbol: string, name: string, price: number, rsi: number,
     };
   }
 
-  // 🟡 YELLOW: Standard Accumulation (Pullback / Neutral Zone)
-  // Logic: (rsi > 40 && rsi < 65) && (dip >= 2 && dip < 6)
   if ((rsi > 40 && rsi < 65) && (dip >= 2)) {
     return {
       symbol, name, price, rsi, rollingHigh: high20Day,
@@ -64,7 +45,6 @@ const getSignalData = (symbol: string, name: string, price: number, rsi: number,
     };
   }
 
-  // 🔴 RED: Overheated / No Dip (RSI >= 65 || Dip < 2%)
   return {
     symbol, name, price, rsi, rollingHigh: high20Day,
     signal: 'RED',
@@ -76,38 +56,73 @@ const getSignalData = (symbol: string, name: string, price: number, rsi: number,
   };
 };
 
-// Mock data for initial UI render (Simulating Jan 2026 conditions)
-const mockData: MetalSignal[] = [
-  getSignalData('XAG', 'Silver', 86.50, 42, 92.39), // Yellow scenario
-  getSignalData('XAU', 'Gold', 4980, 68, 5010)     // Red scenario
-];
-
 export default function App() {
-  const [data, setData] = useState<MetalSignal[]>(mockData);
+  const [data, setData] = useState<MetalSignal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchLivePrices = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Note: We'll create this API route in Step 2 to proxy Twelve Data securely
+      const response = await fetch('/api/prices');
+      if (!response.ok) throw new Error('Failed to fetch market data');
+      
+      const result = await response.json();
+      
+      const updatedData = [
+        getSignalData('XAG', 'Silver', result.silver.price, result.silver.rsi, result.silver.high20),
+        getSignalData('XAU', 'Gold', result.gold.price, result.gold.rsi, result.gold.high20)
+      ];
+      
+      setData(updatedData);
+    } catch (err) {
+      setError('Could not connect to market feed. Using cached/mock data.');
+      // Fallback to mock data if API fails
+      setData([
+        getSignalData('XAG', 'Silver', 0, 0, 0),
+        getSignalData('XAU', 'Gold', 0, 0, 0)
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLivePrices();
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
-      {/* Header */}
       <header className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Metal Sniper <span className="text-blue-600">v2.0</span></h1>
           <p className="text-slate-500 mt-1">Expert Strategy: 20-Day Highs & RSI Optimized</p>
         </div>
         <div className="flex gap-2">
-          <div className="bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-blue-500" />
-            <span className="text-sm font-medium">Accumulation Mode</span>
-          </div>
+          <button 
+            onClick={fetchLivePrices}
+            disabled={loading}
+            className="bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 text-blue-500 ${loading ? 'animate-spin' : ''}`} />
+            <span className="text-sm font-medium">{loading ? 'Syncing...' : 'Sync Live'}</span>
+          </button>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto space-y-6">
-        {/* Status Grid */}
+        {error && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-2xl text-xs font-medium flex items-center gap-2">
+            <Info size={16} /> {error}
+          </div>
+        )}
+
         <div className="grid md:grid-cols-2 gap-6">
           {data.map((item) => (
             <div key={item.symbol} className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 transition-all hover:shadow-2xl">
-              {/* Flag Section */}
-              <div className={`${item.color} p-6 flex justify-between items-center text-white`}>
+              <div className={`${item.color} p-6 flex justify-between items-center text-white transition-colors duration-500`}>
                 <div>
                   <h2 className="text-4xl font-black uppercase tracking-widest">{item.symbol}</h2>
                   <p className="text-sm font-bold opacity-80">{item.name} Market</p>
@@ -117,7 +132,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Stats Section */}
               <div className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 p-4 rounded-2xl text-center">
@@ -134,7 +148,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">
+                <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 min-h-[140px]">
                    <div className="flex items-center gap-2 mb-2 text-blue-700">
                      <Bell size={18} />
                      <span className="font-bold uppercase text-xs tracking-widest">Deployment Rule</span>
@@ -147,7 +161,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* Strategy Legend */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4 text-sm">
             <Info size={18} /> Allocation Strategy (Expert v2.0)
@@ -158,36 +171,24 @@ export default function App() {
                 <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
                 <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">Green</span>
               </div>
-              <p className="text-[11px] text-slate-500"><strong>Rule:</strong> RSI ≤ 40 & Dip ≥ 6%. Deploy weekly 4.5k + 2 saved tranches. Protects from "falling knives".</p>
+              <p className="text-[11px] text-slate-500"><strong>Rule:</strong> RSI ≤ 40 & Dip ≥ 6%. Deploy weekly 4.5k + 2 saved tranches.</p>
             </div>
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-amber-400"></div>
                 <span className="text-xs font-bold uppercase tracking-wider text-amber-700">Yellow</span>
               </div>
-              <p className="text-[11px] text-slate-500"><strong>Rule:</strong> RSI 40–65 & Dip 2–6%. Standard accumulation. Deploy 4.5k only. Don't miss the trend.</p>
+              <p className="text-[11px] text-slate-500"><strong>Rule:</strong> RSI 40–65 & Dip 2–6%. Standard accumulation. Deploy 4.5k only.</p>
             </div>
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-rose-500"></div>
                 <span className="text-xs font-bold uppercase tracking-wider text-rose-700">Red</span>
               </div>
-              <p className="text-[11px] text-slate-500"><strong>Rule:</strong> RSI ≥ 65 or Dip &lt; 2%. Overextended. Deploy 0. Let cash earn 6.25% in Mashreq.</p>
+              <p className="text-[11px] text-slate-500"><strong>Rule:</strong> RSI ≥ 65 or Dip &lt; 2%. Overextended. Deploy 0.</p>
             </div>
           </div>
         </div>
-
-        {/* Action Bar */}
-        <footer className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left py-6">
-          <p className="text-slate-400 text-[10px] flex-1">
-            Decision logic calibrated for 24-month horizon. Signal uses 20-day high as volatility anchor.
-          </p>
-          <div className="flex gap-4">
-            <button className="flex items-center gap-2 text-xs font-bold bg-slate-900 text-white px-5 py-3 rounded-xl hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200">
-              <Mail size={14} /> Send Alert to Wife
-            </button>
-          </div>
-        </footer>
       </main>
     </div>
   );

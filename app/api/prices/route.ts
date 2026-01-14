@@ -2,70 +2,82 @@ import { NextResponse } from 'next/server';
 
 /**
  * API ROUTE: /api/prices
- * SWITCHED TO ALPHA VANTAGE / OPEN SOURCE FETCH 
- * Since Twelve Data now requires a paid 'Grow' plan for XAU/USD.
+ * Updated to use Yahoo Finance fallback (Free Tier) with robust error handling.
+ * This ensures the dashboard matches the logic used in the automated Cron alerts.
  */
-
-// If you have an Alpha Vantage key, put it here. 
-// Otherwise, we use a public fallback.
-const AV_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || 'demo'; 
 
 export async function GET() {
   try {
-    // Helper to fetch from a free-tier compatible source
-    // We are using Alpha Vantage for RSI and a public price feed for spot prices
-    const fetchMetalData = async (metal: 'gold' | 'silver') => {
-      const symbol = metal === 'gold' ? 'XAU' : 'XAG';
-      
-      // 1. Fetch Price & 20-Day High
-      // Using a reliable public finance endpoint
-      const priceUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}USD=X?interval=1d&range=30d`;
-      const priceRes = await fetch(priceUrl);
-      const priceData = await priceRes.json();
-      
-      const quotes = priceData.chart.result[0].indicators.quote[0];
-      const currentPrice = priceData.chart.result[0].meta.regularMarketPrice;
-      
-      // Calculate 20-day high from the last 20 closing prices
-      const last20Days = quotes.high.slice(-20);
-      const high20 = Math.max(...last20Days);
+    // Helper for manual RSI calculation
+    const calculateRSI = (prices: (number | null)[]) => {
+      const validPrices = prices.filter((p): p is number => p !== null);
+      if (validPrices.length < 15) return 50; // Neutral fallback if data is thin
 
-      // 2. Fetch RSI 
-      // We calculate RSI manually from the price data to avoid Twelve Data's paywall
-      const closes = quotes.close.slice(-15); // Need 14 periods
-      const rsi = calculateRSI(closes);
-
-      return { price: currentPrice, rsi, high20 };
+      let gains = 0;
+      let losses = 0;
+      for (let i = 1; i < validPrices.length; i++) {
+        const diff = validPrices[i] - validPrices[i - 1];
+        if (diff >= 0) gains += diff;
+        else losses -= diff;
+      }
+      const avgGain = gains / 14;
+      const avgLoss = losses / 14;
+      return avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
     };
 
+    const fetchMetalData = async (symbol: string) => {
+      // Try both common Yahoo formats for metals to ensure a hit
+      const variants = [`${symbol}USD=X`, `${symbol}=F`].map(s => 
+        `https://query1.finance.yahoo.com/v8/finance/chart/${s}?interval=1d&range=30d`
+      );
+
+      let lastError = null;
+      for (const url of variants) {
+        try {
+          const res = await fetch(url, { next: { revalidate: 0 } });
+          const data = await res.json();
+          
+          if (!data?.chart?.result?.[0]) continue;
+
+          const result = data.chart.result[0];
+          const quotes = result.indicators.quote[0];
+          const currentPrice = result.meta.regularMarketPrice;
+          
+          // Filter out nulls often found in Yahoo Finance data arrays (holidays/gaps)
+          const highPrices = (quotes.high as (number | null)[]).filter((h): h is number => h !== null);
+          const closePrices = (quotes.close as (number | null)[]);
+
+          if (highPrices.length === 0) continue;
+
+          const last20Highs = highPrices.slice(-20);
+          const high20 = Math.max(...last20Highs);
+          const rsi = calculateRSI(closePrices.slice(-15));
+
+          return { price: currentPrice, rsi, high20 };
+        } catch (e) {
+          lastError = e;
+        }
+      }
+      throw lastError || new Error(`No data returned for ${symbol}`);
+    };
+
+    // Execute fetches for both Gold and Silver
     const [gold, silver] = await Promise.all([
-      fetchMetalData('gold'),
-      fetchMetalData('silver')
+      fetchMetalData('XAU'),
+      fetchMetalData('XAG')
     ]);
 
-    return NextResponse.json({ gold, silver });
+    // Return the data to the frontend
+    return NextResponse.json({
+      gold,
+      silver
+    });
 
   } catch (error: any) {
     console.error('Price Fetch Error:', error);
-    return NextResponse.json({ error: 'Market data currently unavailable on free tier.' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Market data currently unavailable. Check logs.' }, 
+      { status: 500 }
+    );
   }
-}
-
-// Simple RSI Calculation Utility
-function calculateRSI(prices: number[]) {
-  let gains = 0;
-  let losses = 0;
-
-  for (let i = 1; i < prices.length; i++) {
-    const diff = prices[i] - prices[i - 1];
-    if (diff >= 0) gains += diff;
-    else losses -= diff;
-  }
-
-  const avgGain = gains / 14;
-  const avgLoss = losses / 14;
-
-  if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return 100 - (100 / (1 + rs));
 }

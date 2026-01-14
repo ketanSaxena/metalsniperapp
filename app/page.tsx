@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { LucideIcon, TrendingUp, TrendingDown, Minus, Info, Mail, Bell, ShieldCheck } from 'lucide-react';
 

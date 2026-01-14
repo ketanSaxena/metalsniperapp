@@ -3,11 +3,10 @@ import { Resend } from 'resend';
 
 /**
  * THIS IS THE SERVER-SIDE CRON JOB SCRIPT
- * Deployment Path: your-domain.com/api/cron
+ * Updated to use Yahoo Finance fallback (Free Tier)
  */
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const TD_API_KEY = process.env.TWELVE_DATA_API_KEY;
 
 export async function GET(request: Request) {
   // 1. Security Check: Only allow Vercel Cron or authorized calls
@@ -17,56 +16,75 @@ export async function GET(request: Request) {
   }
 
   try {
-    // 2. Fetch Data (Example for Silver)
-    // In production, fetch price and technical RSI from Twelve Data
-    const priceRes = await fetch(`https://api.twelvedata.com/time_series?symbol=XAG/USD&interval=1day&outputsize=14&apikey=${TD_API_KEY}`);
-    const rsiRes = await fetch(`https://api.twelvedata.com/rsi?symbol=XAG/USD&interval=1day&time_period=14&apikey=${TD_API_KEY}`);
-    
-    const priceData = await priceRes.json();
-    const rsiData = await rsiRes.json();
+    // Helper for manual RSI calculation (same as prices route)
+    const calculateRSI = (prices: number[]) => {
+      let gains = 0;
+      let losses = 0;
+      for (let i = 1; i < prices.length; i++) {
+        const diff = prices[i] - prices[i - 1];
+        if (diff >= 0) gains += diff;
+        else losses -= diff;
+      }
+      const avgGain = gains / 14;
+      const avgLoss = losses / 14;
+      return avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
+    };
 
-    const currentPrice = parseFloat(priceData.values[0].close);
-    const rsiValue = parseFloat(rsiData.values[0].rsi);
-    const weeklyHigh = Math.max(...priceData.values.slice(0, 7).map((v: any) => parseFloat(v.high)));
-    
-    const dip = ((weeklyHigh - currentPrice) / weeklyHigh) * 100;
+    const fetchMetalData = async (symbol: string) => {
+      const priceUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}USD=X?interval=1d&range=30d`;
+      const res = await fetch(priceUrl);
+      const data = await res.json();
+      
+      const quotes = data.chart.result[0].indicators.quote[0];
+      const currentPrice = data.chart.result[0].meta.regularMarketPrice;
+      const last20Days = quotes.high.slice(-20);
+      const high20 = Math.max(...last20Days);
+      const rsi = calculateRSI(quotes.close.slice(-15));
 
-    // 3. Logic Execution
-    let status = "🔴 RED - PEAK";
+      return { price: currentPrice, rsi, high20 };
+    };
+
+    // Fetch for Silver (XAG)
+    const silver = await fetchMetalData('XAG');
+    const dip = ((silver.high20 - silver.price) / silver.high20) * 100;
+
+    // Decision Logic v2.0
+    let status = "🔴 RED - PAUSE";
     let color = "#f43f5e";
-    let action = "DO NOT BUY. Move 4.5k to Savings.";
+    let action = "DO NOT BUY. Move 4.5k to Mashreq Savings.";
 
-    if (rsiValue < 45 && dip > 5) {
-      status = "🟢 GREEN - STRONG BUY";
+    if (silver.rsi <= 40 && dip >= 6) {
+      status = "🟢 GREEN - AGGRESSIVE BUY";
       color = "#10b981";
-      action = "SNIPER ALERT: Deploy 4.5k + ALL SAVINGS.";
-    } else if (rsiValue < 55 || dip > 3) {
-      status = "🟡 YELLOW - MILD DIP";
+      action = "SNIPER ALERT: Deploy 4.5k + MAX 2 saved tranches.";
+    } else if (silver.rsi < 65 && dip >= 2) {
+      status = "🟡 YELLOW - WEEKLY BUY";
       color = "#f59e0b";
-      action = "BUY 4.5k ONLY. Keep existing savings idle.";
+      action = "BUY 4.5k ONLY. Keep existing savings in bank.";
     }
 
     // 4. Send Email Notification
     await resend.emails.send({
       from: 'Metal Sniper <alerts@yourdomain.com>',
       to: [process.env.RECEIVER_EMAIL || ''],
-      subject: `Weekly Update: ${status} for Silver`,
+      subject: `Weekly Alert: ${status} for Silver`,
       html: `
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-          <h2 style="color: ${color}; font-size: 24px;">${status}</h2>
+          <h2 style="color: ${color}; font-size: 24px; margin-top: 0;">${status}</h2>
           <p style="font-size: 18px; font-weight: bold;">Action: ${action}</p>
-          <hr />
-          <p>Current Price: <strong>$${currentPrice.toFixed(2)}</strong></p>
-          <p>RSI Level: <strong>${rsiValue.toFixed(1)}</strong></p>
-          <p>Weekly High: $${weeklyHigh.toFixed(2)} (${dip.toFixed(1)}% dip)</p>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p>Current Price: <strong>$${silver.price.toFixed(2)}</strong></p>
+          <p>RSI Level: <strong>${silver.rsi.toFixed(1)}</strong></p>
+          <p>20-Day High: $${silver.high20.toFixed(2)} (${dip.toFixed(1)}% dip)</p>
           <br />
-          <p style="color: #666; font-size: 12px;">This is an automated alert based on your Sane-Madness strategy.</p>
+          <p style="color: #666; font-size: 11px;">This alert follows the Expert v2.0 Strategy. 20-day high is used as the volatility anchor.</p>
         </div>
       `
     });
 
     return NextResponse.json({ success: true, status });
   } catch (error: any) {
+    console.error('Cron Error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

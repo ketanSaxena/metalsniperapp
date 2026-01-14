@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 
 /**
  * THIS IS THE SERVER-SIDE CRON JOB SCRIPT
- * Updated to use Yahoo Finance fallback (Free Tier)
+ * Updated to handle Yahoo Finance API null results and improved error handling.
  */
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -16,12 +16,15 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Helper for manual RSI calculation (same as prices route)
-    const calculateRSI = (prices: number[]) => {
+    // Helper for manual RSI calculation
+    const calculateRSI = (prices: (number | null)[]) => {
+      const validPrices = prices.filter((p): p is number => p !== null);
+      if (validPrices.length < 15) return 50; // Neutral fallback if data is thin
+
       let gains = 0;
       let losses = 0;
-      for (let i = 1; i < prices.length; i++) {
-        const diff = prices[i] - prices[i - 1];
+      for (let i = 1; i < validPrices.length; i++) {
+        const diff = validPrices[i] - validPrices[i - 1];
         if (diff >= 0) gains += diff;
         else losses -= diff;
       }
@@ -31,17 +34,39 @@ export async function GET(request: Request) {
     };
 
     const fetchMetalData = async (symbol: string) => {
-      const priceUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}USD=X?interval=1d&range=30d`;
-      const res = await fetch(priceUrl);
-      const data = await res.json();
-      
-      const quotes = data.chart.result[0].indicators.quote[0];
-      const currentPrice = data.chart.result[0].meta.regularMarketPrice;
-      const last20Days = quotes.high.slice(-20);
-      const high20 = Math.max(...last20Days);
-      const rsi = calculateRSI(quotes.close.slice(-15));
+      // Try both common Yahoo formats for metals
+      const variants = [`${symbol}USD=X`, `${symbol}=F`].map(s => 
+        `https://query1.finance.yahoo.com/v8/finance/chart/${s}?interval=1d&range=30d`
+      );
 
-      return { price: currentPrice, rsi, high20 };
+      let lastError = null;
+      for (const url of variants) {
+        try {
+          const res = await fetch(url, { next: { revalidate: 0 } });
+          const data = await res.json();
+          
+          if (!data?.chart?.result?.[0]) continue;
+
+          const result = data.chart.result[0];
+          const quotes = result.indicators.quote[0];
+          const currentPrice = result.meta.regularMarketPrice;
+          
+          // Filter out nulls often found in Yahoo Finance data arrays
+          const highPrices = (quotes.high as (number | null)[]).filter((h): h is number => h !== null);
+          const closePrices = (quotes.close as (number | null)[]);
+
+          if (highPrices.length === 0) continue;
+
+          const last20Highs = highPrices.slice(-20);
+          const high20 = Math.max(...last20Highs);
+          const rsi = calculateRSI(closePrices.slice(-15));
+
+          return { price: currentPrice, rsi, high20 };
+        } catch (e) {
+          lastError = e;
+        }
+      }
+      throw lastError || new Error(`No data returned for ${symbol}`);
     };
 
     // Fetch for Silver (XAG)

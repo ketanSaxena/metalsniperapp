@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 
 /**
  * API ROUTE: /api/prices
- * Updated to use Yahoo Finance fallback (Free Tier) with robust error handling.
- * This ensures the dashboard matches the logic used in the automated Cron alerts.
+ * Updated with enhanced headers and symbol list to resolve "No data returned" errors.
+ * Now includes User-Agent headers to mimic a browser, which Yahoo Finance often requires.
  */
 
 export async function GET() {
@@ -11,7 +11,7 @@ export async function GET() {
     // Helper for manual RSI calculation
     const calculateRSI = (prices: (number | null)[]) => {
       const validPrices = prices.filter((p): p is number => p !== null);
-      if (validPrices.length < 15) return 50; // Neutral fallback if data is thin
+      if (validPrices.length < 15) return 50; 
 
       let gains = 0;
       let losses = 0;
@@ -26,15 +26,26 @@ export async function GET() {
     };
 
     const fetchMetalData = async (symbol: string) => {
-      // Try both common Yahoo formats for metals to ensure a hit
-      const variants = [`${symbol}USD=X`, `${symbol}=F`].map(s => 
-        `https://query1.finance.yahoo.com/v8/finance/chart/${s}?interval=1d&range=30d`
+      // Expanded variants to include Futures (SI=F, GC=F) and Forex (XAGUSD=X)
+      const tickers = symbol === 'XAU' ? ['XAUUSD=X', 'GC=F'] : ['XAGUSD=X', 'SI=F', 'XAG=F'];
+      
+      const urls = tickers.map(t => 
+        `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1d&range=30d`
       );
 
       let lastError = null;
-      for (const url of variants) {
+      for (const url of urls) {
         try {
-          const res = await fetch(url, { next: { revalidate: 0 } });
+          // IMPORTANT: Headers added to prevent Yahoo from blocking the request
+          const res = await fetch(url, { 
+            next: { revalidate: 0 },
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+          });
+          
+          if (!res.ok) continue;
+
           const data = await res.json();
           
           if (!data?.chart?.result?.[0]) continue;
@@ -43,11 +54,10 @@ export async function GET() {
           const quotes = result.indicators.quote[0];
           const currentPrice = result.meta.regularMarketPrice;
           
-          // Filter out nulls often found in Yahoo Finance data arrays (holidays/gaps)
           const highPrices = (quotes.high as (number | null)[]).filter((h): h is number => h !== null);
           const closePrices = (quotes.close as (number | null)[]);
 
-          if (highPrices.length === 0) continue;
+          if (highPrices.length === 0 || !currentPrice) continue;
 
           const last20Highs = highPrices.slice(-20);
           const high20 = Math.max(...last20Highs);
@@ -58,7 +68,7 @@ export async function GET() {
           lastError = e;
         }
       }
-      throw lastError || new Error(`No data returned for ${symbol}`);
+      throw lastError || new Error(`No data returned for ${symbol} after trying all variants.`);
     };
 
     // Execute fetches for both Gold and Silver
@@ -67,16 +77,12 @@ export async function GET() {
       fetchMetalData('XAG')
     ]);
 
-    // Return the data to the frontend
-    return NextResponse.json({
-      gold,
-      silver
-    });
+    return NextResponse.json({ gold, silver });
 
   } catch (error: any) {
     console.error('Price Fetch Error:', error);
     return NextResponse.json(
-      { error: 'Market data currently unavailable. Check logs.' }, 
+      { error: error.message || 'Market data currently unavailable.' }, 
       { status: 500 }
     );
   }

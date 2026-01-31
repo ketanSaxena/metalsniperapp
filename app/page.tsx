@@ -15,7 +15,9 @@ import {
   HelpCircle,
   ArrowRight,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ShieldAlert,
+  Scale
 } from 'lucide-react';
 
 /**

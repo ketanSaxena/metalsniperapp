@@ -169,7 +169,7 @@ export default function App() {
           <article className="prose prose-slate max-w-none space-y-8">
             <header className="bg-blue-600 rounded-3xl p-8 text-white">
               <h1 className="text-2xl font-black mb-2 text-white">📊 The Smart Dip-Investing Strategy Explained Simply</h1>
-              <p className="opacity-90 font-medium">Maximize your returns by buying the blood and skipping the peaks.</p>
+              <p className="opacity-90 font-medium">Maximize your returns by buying the dips and skipping the peaks.</p>
             </header>
 
             <section>
@@ -257,6 +257,17 @@ export default function App() {
                 "Bought MORE units when cheap, FEWER when expensive. Same ₹50,000 budget."
               </p>
             </section>
+
+            {/* Strategic Warning in Drawer */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex gap-4">
+              <ShieldAlert className="text-amber-600 shrink-0" size={24} />
+              <div>
+                <p className="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">Disclaimer & Risk</p>
+                <p className="text-xs text-amber-700 leading-relaxed italic">
+                  This strategy is for educational purposes only. It is intended solely for the personal use of the creator. Investing in Mutual Funds, Commodities, and Indices involves market risks. Past performance is not indicative of future results.
+                </p>
+              </div>
+            </div>
 
             <section className="pb-12 space-y-4">
               <h3 className="text-lg font-bold">🎮 Think Of It Like:</h3>
@@ -446,22 +457,30 @@ export default function App() {
       </main>
 
       <footer className="max-w-6xl mx-auto w-full pt-8 pb-12 mt-auto border-t border-slate-200">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-center md:text-left">
-            <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">
-              © 2025 KETAN SAXENA — BUILT FOR SCALE
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <div>
+            <p className="text-[10px] font-black tracking-widest text-slate-900 uppercase mb-3 flex items-center gap-2">
+              <Scale size={14} className="text-blue-600" /> Legal Disclaimer
+            </p>
+            <p className="text-[10px] text-slate-400 leading-relaxed font-medium uppercase tracking-tight">
+              This application is not a registered investment advisor. The information provided is solely for the personal use and research of the creator. It does NOT constitute financial advice to buy or sell securities, commodities, or index funds. All investments are subject to market risks. Please consult with a certified financial professional before making any deployment decisions.
             </p>
           </div>
-          <div className="flex items-center gap-1.5 group">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Author Website :</span>
-            <a 
-              href="https://meetketan.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-[10px] font-black text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-widest border-b-2 border-blue-100 group-hover:border-blue-600"
-            >
-              meetketan.com
-            </a>
+          <div className="md:text-right flex flex-col md:items-end justify-start">
+            <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase mb-1">
+              © 2025 KETAN SAXENA — BUILT FOR SCALE
+            </p>
+            <div className="flex items-center gap-1.5 group">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Author Website :</span>
+              <a 
+                href="https://meetketan.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-[10px] font-black text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-widest border-b-2 border-blue-100 group-hover:border-blue-600"
+              >
+                meetketan.com
+              </a>
+            </div>
           </div>
         </div>
       </footer>

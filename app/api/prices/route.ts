@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 
 /**
  * API ROUTE: /api/prices
- * Updated with enhanced headers and symbol list to resolve "No data returned" errors.
- * Now includes User-Agent headers to mimic a browser, which Yahoo Finance often requires.
+ * Updated to fetch Gold (XAU), Silver (XAG), and Nifty 50 (^NSEI).
+ * Includes RSI calculation and 20-day high benchmarks for all assets.
  */
 
 export async function GET() {
@@ -25,18 +25,25 @@ export async function GET() {
       return avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
     };
 
-    const fetchMetalData = async (symbol: string) => {
-      // Expanded variants to include Futures (SI=F, GC=F) and Forex (XAGUSD=X)
-      const tickers = symbol === 'XAU' ? ['XAUUSD=X', 'GC=F'] : ['XAGUSD=X', 'SI=F', 'XAG=F'];
+    const fetchMarketData = async (symbol: string) => {
+      // Define tickers for different asset classes
+      let tickers: string[] = [];
+      if (symbol === 'XAU') {
+        tickers = ['XAUUSD=X', 'GC=F'];
+      } else if (symbol === 'XAG') {
+        tickers = ['XAGUSD=X', 'SI=F', 'XAG=F'];
+      } else if (symbol === 'NIFTY50') {
+        // %5ENSEI is the URL encoded version of ^NSEI
+        tickers = ['^NSEI'];
+      }
       
-      const urls = tickers.map(t => 
-        `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1d&range=30d`
-      );
-
+      const range = '1mo'; // 1 month is sufficient for 20-day high and RSI
+      
       let lastError = null;
-      for (const url of urls) {
+      for (const t of tickers) {
         try {
-          // IMPORTANT: Headers added to prevent Yahoo from blocking the request
+          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(t)}?interval=1d&range=${range}`;
+          
           const res = await fetch(url, { 
             next: { revalidate: 0 },
             headers: {
@@ -47,7 +54,6 @@ export async function GET() {
           if (!res.ok) continue;
 
           const data = await res.json();
-          
           if (!data?.chart?.result?.[0]) continue;
 
           const result = data.chart.result[0];
@@ -59,8 +65,11 @@ export async function GET() {
 
           if (highPrices.length === 0 || !currentPrice) continue;
 
+          // 20-Day High Calculation
           const last20Highs = highPrices.slice(-20);
           const high20 = Math.max(...last20Highs);
+          
+          // RSI Calculation (requires ~14-15 previous close points)
           const rsi = calculateRSI(closePrices.slice(-15));
 
           return { price: currentPrice, rsi, high20 };
@@ -71,13 +80,16 @@ export async function GET() {
       throw lastError || new Error(`No data returned for ${symbol} after trying all variants.`);
     };
 
-    // Execute fetches for both Gold and Silver
-    const [gold, silver] = await Promise.all([
-      fetchMetalData('XAU'),
-      fetchMetalData('XAG')
+    // Execute fetches for Gold, Silver, and Nifty 50
+    const [gold, silver, nifty50] = await Promise.all([
+      fetchMarketData('XAU'),
+      fetchMarketData('XAG'),
+      fetchMarketData('NIFTY50')
     ]);
 
-    return NextResponse.json({ gold, silver });
+    console.log(gold, silver, nifty50);
+
+    return NextResponse.json({ gold, silver, nifty50 });
 
   } catch (error: any) {
     console.error('Price Fetch Error:', error);

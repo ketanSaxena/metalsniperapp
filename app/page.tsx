@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, 
@@ -10,13 +8,19 @@ import {
   RefreshCw, 
   Activity, 
   BarChart3,
-  ChevronRight
+  ChevronRight,
+  X,
+  HelpCircle,
+  ArrowRight,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 /**
  * METAL SNIPER v2.1 - LIVE DASHBOARD
  * Includes Metals + Nifty 50 Trend Analysis
  * Updated with specific logic for Index vs Commodities
+ * Features Strategy Explanation Drawer
  */
 
 type SignalType = 'GREEN' | 'YELLOW' | 'RED';
@@ -64,8 +68,6 @@ const getMetalSignal = (symbol: string, name: string, price: number, rsi: number
 const getNiftySignal = (price: number, rsi: number, high20Day: number): MarketSignal => {
   const dip = high20Day > 0 ? ((high20Day - price) / high20Day) * 100 : 0;
   
-  // Nifty specific logic: Often shows strength by staying near highs.
-  // We use slightly tighter RSI thresholds for Index buying.
   if (rsi < 45 && dip > 4) {
     return {
       symbol: 'NIFTY50', name: 'Nifty 50 Index', price, rsi, rollingHigh: high20Day, type: 'INDEX',
@@ -94,6 +96,7 @@ export default function App() {
   const [data, setData] = useState<MarketSignal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const fetchLivePrices = async () => {
     setLoading(true);
@@ -127,12 +130,156 @@ export default function App() {
     fetchLivePrices();
   }, []);
 
+  // Close drawer on escape key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsDrawerOpen(false);
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
+      {/* Side Drawer Backdrop */}
+      {isDrawerOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity"
+          onClick={() => setIsDrawerOpen(false)}
+        />
+      )}
+
+      {/* Strategy Drawer */}
+      <div className={`fixed top-0 right-0 h-full w-full max-w-xl bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out overflow-y-auto ${isDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="p-6 md:p-8">
+          <div className="flex justify-between items-center mb-8 sticky top-0 bg-white/95 py-2 backdrop-blur-sm border-b border-slate-100 -mx-4 px-4">
+            <h2 className="text-xl font-black flex items-center gap-2">
+              <BarChart3 className="text-blue-600" /> Strategy Guide
+            </h2>
+            <button 
+              onClick={() => setIsDrawerOpen(false)}
+              className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          <article className="prose prose-slate max-w-none space-y-8">
+            <header className="bg-blue-600 rounded-3xl p-8 text-white">
+              <h1 className="text-2xl font-black mb-2 text-white">📊 The Smart Dip-Investing Strategy Explained Simply</h1>
+              <p className="opacity-90 font-medium">Maximize your returns by buying the blood and skipping the peaks.</p>
+            </header>
+
+            <section>
+              <h3 className="text-lg font-bold flex items-center gap-2 mb-4">
+                <Activity size={18} className="text-blue-600" /> The Core Idea
+              </h3>
+              <p className="text-slate-600 leading-relaxed">
+                Instead of investing your monthly amount all at once, you <strong>split it into daily parts</strong> and only invest when the market gives you a good deal.
+              </p>
+            </section>
+
+            <section className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+              <h3 className="text-lg font-bold mb-4">🔄 How It Works</h3>
+              <div className="space-y-4 text-sm">
+                <div className="flex gap-3">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">1</div>
+                  <p><strong>Set Your Monthly Budget:</strong> Example: ₹50,000 per month.</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">2</div>
+                  <p><strong>Split Into Daily Parts:</strong> ₹50,000 ÷ 22 trading days = <strong>₹2,273 per day</strong>. This is your "daily investment token".</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-6">
+              <h3 className="text-lg font-bold">Three Market Conditions:</h3>
+              
+              <div className="border-l-4 border-emerald-500 pl-4 py-1">
+                <p className="font-black text-emerald-700 uppercase tracking-wider text-xs mb-1">🟢 GREEN ZONE (BUY MORE)</p>
+                <p className="text-sm font-bold text-slate-800">Condition: Price dropped ≥6% AND RSI &lt; 40</p>
+                <p className="text-sm text-slate-600 mt-1"><strong>Action:</strong> Invest TODAY'S ₹2,273 + ALL PREVIOUS DAYS YOU SKIPPED.</p>
+              </div>
+
+              <div className="border-l-4 border-amber-400 pl-4 py-1">
+                <p className="font-black text-amber-600 uppercase tracking-wider text-xs mb-1">🟡 YELLOW ZONE (BUY NORMAL)</p>
+                <p className="text-sm font-bold text-slate-800">Condition: Price between -2% to -6% from high</p>
+                <p className="text-sm text-slate-600 mt-1"><strong>Action:</strong> Invest only TODAY'S ₹2,273.</p>
+              </div>
+
+              <div className="border-l-4 border-rose-500 pl-4 py-1">
+                <p className="font-black text-rose-600 uppercase tracking-wider text-xs mb-1">🔴 RED ZONE (SKIP)</p>
+                <p className="text-sm font-bold text-slate-800">Condition: Price &lt;2% from high OR RSI &gt; 65</p>
+                <p className="text-sm text-slate-600 mt-1"><strong>Action:</strong> SKIP investing today. Save cash for future green days.</p>
+              </div>
+            </section>
+
+            <section className="bg-slate-900 rounded-3xl p-8 text-white">
+              <h3 className="text-xl font-black mb-6 flex items-center gap-2 text-blue-400">
+                <ChevronRight /> Real World Example
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[10px] md:text-xs">
+                  <thead>
+                    <tr className="border-b border-white/20 text-slate-400">
+                      <th className="pb-2 text-left">Day</th>
+                      <th className="pb-2 text-left">Signal</th>
+                      <th className="pb-2 text-left">Action</th>
+                      <th className="pb-2 text-right">Saved</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10">
+                    <tr>
+                      <td className="py-2">1</td>
+                      <td className="py-2 text-rose-400 font-bold">RED 🔴</td>
+                      <td className="py-2">Skip</td>
+                      <td className="py-2 text-right">₹2,273</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2">2</td>
+                      <td className="py-2 text-amber-400 font-bold">YELLOW 🟡</td>
+                      <td className="py-2">Invest ₹2,273</td>
+                      <td className="py-2 text-right">₹2,273</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 font-black">3</td>
+                      <td className="py-2 text-emerald-400 font-bold">GREEN 🟢</td>
+                      <td className="py-2 font-bold">Invest ₹4,546</td>
+                      <td className="py-2 text-right font-bold text-emerald-400">₹0</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-4 italic font-medium">
+                "Bought MORE units when cheap, FEWER when expensive. Same ₹50,000 budget."
+              </p>
+            </section>
+
+            <section className="pb-12 space-y-4">
+              <h3 className="text-lg font-bold">🎮 Think Of It Like:</h3>
+              <p className="text-sm bg-slate-50 p-4 rounded-xl border border-slate-100 leading-relaxed">
+                You're a smart shopper in a mall:<br/>
+                <span className="text-rose-600 font-bold">🔴 RED</span> = Full price → Wait for sale<br/>
+                <span className="text-amber-600 font-bold">🟡 YELLOW</span> = 10% off → Buy normal amount<br/>
+                <span className="text-emerald-600 font-bold">🟢 GREEN</span> = 50% off → Stock up heavily!<br/>
+                <strong>Same money, more stuff.</strong>
+              </p>
+              <button 
+                onClick={() => setIsDrawerOpen(false)}
+                className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+              >
+                Got It, Let's Sniper!
+              </button>
+            </section>
+          </article>
+        </div>
+      </div>
+
       <header className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="bg-blue-600 p-1.5 rounded-lg text-white">
+            <div className="bg-blue-600 p-1.5 rounded-lg text-white shadow-lg shadow-blue-200">
               <Activity size={20} />
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
@@ -142,14 +289,24 @@ export default function App() {
           <p className="text-slate-500 text-sm italic">Metals Strategy + Nifty 50 Trend Index</p>
         </div>
         
-        <button 
-          onClick={fetchLivePrices}
-          disabled={loading}
-          className="bg-white border border-slate-200 px-5 py-2.5 rounded-2xl shadow-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 text-blue-500 ${loading ? 'animate-spin' : ''}`} />
-          <span className="text-sm font-bold">{loading ? 'Syncing...' : 'Refresh Markets'}</span>
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setIsDrawerOpen(true)}
+            className="bg-white border border-slate-200 px-5 py-2.5 rounded-2xl shadow-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95 text-slate-600"
+          >
+            <HelpCircle className="w-4 h-4 text-slate-400" />
+            <span className="text-sm font-bold">How It Works</span>
+          </button>
+          
+          <button 
+            onClick={fetchLivePrices}
+            disabled={loading}
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-2xl shadow-lg shadow-blue-100 flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="text-sm font-bold">{loading ? 'Syncing...' : 'Live Sync'}</span>
+          </button>
+        </div>
       </header>
 
       <main className="max-w-6xl mx-auto">

@@ -142,7 +142,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8 flex flex-col">
       {/* Side Drawer Backdrop */}
       {isDrawerOpen && (
         <div 
@@ -278,7 +278,7 @@ export default function App() {
         </div>
       </div>
 
-      <header className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <header className="max-w-6xl mx-auto w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="bg-blue-600 p-1.5 rounded-lg text-white shadow-lg shadow-blue-200">
@@ -311,7 +311,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto">
+      <main className="max-w-6xl mx-auto w-full flex-grow">
         {error && (
           <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-2xl text-xs font-medium flex items-center gap-2 mb-6">
             <Info size={16} /> {error}
@@ -392,7 +392,7 @@ export default function App() {
           ))}
         </div>
 
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
           <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
             <h3 className="font-black text-slate-800 flex items-center gap-2 mb-6 text-sm uppercase tracking-wider">
               <BarChart3 size={18} className="text-blue-500" /> Capital Allocation Rules
@@ -444,6 +444,27 @@ export default function App() {
           </div>
         </section>
       </main>
+
+      <footer className="max-w-6xl mx-auto w-full pt-8 pb-12 mt-auto border-t border-slate-200">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="text-center md:text-left">
+            <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">
+              © 2025 KETAN SAXENA — BUILT FOR SCALE
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 group">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Author Website :</span>
+            <a 
+              href="https://meetketan.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[10px] font-black text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-widest border-b-2 border-blue-100 group-hover:border-blue-600"
+            >
+              meetketan.com
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

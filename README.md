@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sniper v2.1: Multi-Asset Strategic Investment Dashboard
 
-## Getting Started
+Sniper is a specialized financial dashboard designed for the "Smart Dip-Investing" strategy. Instead of traditional SIPs (Systematic Investment Plans) that buy blindly on a fixed date, Sniper identifies local market corrections using RSI and 20-day high benchmarks to optimize entry points for Gold, Silver, and Equity Indices.
 
-First, run the development server:
+## 🚀 Technical Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Frontend: React (Vite) with Tailwind CSS.
+- Icons: Lucide-React.
+- Backend: Next.js API Routes (Route Handlers).
+- Data Source: Yahoo Finance API integration for live spot prices and historical candles.
+- State Management: React Hooks (useState/useEffect) with local Watchlist persistence.
+
+## 🏗️ Deployment & Setup
+
+Environment Variables:
+Ensure your environment supports Next.js API routes if deploying to Vercel.
+
+Install Dependencies:
+```
+npm install lucide-react clsx tailwind-merge
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### API Implementation:
+The /api/prices route handles the heavy lifting of fetching data from Yahoo Finance and calculating the RSI/Rolling Highs server-side to prevent CORS issues.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📊 Investment Philosophy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app is built on a "Daily Token" allocation model:
 
-## Learn More
+The Budget: Divide your monthly investment capital by 22 (trading days).
 
-To learn more about Next.js, take a look at the following resources:
+#### The Logic:
+```
+RED (Overheated): Skip buying. Save the daily token in a "bank."
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+YELLOW (Neutral): Deploy only today's token.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+GREEN (Sale): Deploy today's token + all previously saved "Red Day" tokens.
+```
+This ensures you accumulate the maximum number of units when the market is at a local bottom.
 
-## Deploy on Vercel
+## 🛠️ Features
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**1. Watchlist Management**
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Users can toggle between different asset groups:
+
+Metals: Gold (XAU), Silver (XAG).
+
+Equity: Nifty 50, Nifty Midcap 100, and the Edelweiss Nifty Midcap150 Momentum 50 index.
+
+**2. Live Signal Engine**
+
+The app calculates real-time signals based on:
+
+- RSI (14-period): Identifying overbought (>65) or oversold (<40) conditions.
+- 20-Day Drawdown: Measuring the current price against the rolling 20-day high to identify "Sale" percentages (e.g., >6% for metals, >4% for indices).
+
+**3. Integrated Legal Safety**
+
+Built-in disclaimers and risk warnings to ensure the tool remains classified as a "Personal Usage Dashboard" rather than a licensed advisory platform.
+
+## ⚖️ Legal Disclaimer
+
+This application is NOT a registered investment advisor. It is intended solely for personal use. Mutual funds, stocks, and commodities are subject to market risks. The "Sniper" strategy is a mathematical approach to capital deployment and does not guarantee profits.
+
+---
+- Author: **Ketan Saxena**
+- Website: **[meetketan.com](https://meetketan.com)**

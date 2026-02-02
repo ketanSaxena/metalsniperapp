@@ -39,7 +39,7 @@ interface MarketSignal {
   action: string;
   reason: string;
   color: string;
-  type: 'METAL' | 'INDEX';
+  type: 'METAL' | 'EQUITY';
 }
 
 const getMetalSignal = (symbol: string, name: string, price: number, rsi: number, high20Day: number): MarketSignal => {

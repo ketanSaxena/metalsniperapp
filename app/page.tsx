@@ -75,7 +75,7 @@ const getNiftySignal = (price: number, rsi: number, high20Day: number): MarketSi
   
   if (rsi < 45 && dip > 4) {
     return {
-      symbol: 'NIFTY50', name: 'Nifty 50 Index', price, rsi, rollingHigh: high20Day, type: 'INDEX',
+      symbol: 'NIFTY50', name: 'Nifty 50 Index', price, rsi, rollingHigh: high20Day, type: 'EQUITY',
       signal: 'GREEN', action: "ACCUMULATE INDEX",
       reason: `Index corrected ${dip.toFixed(1)}%. RSI at ${rsi.toFixed(1)} indicates a strong mean-reversion opportunity.`,
       color: 'bg-emerald-500'
@@ -83,14 +83,14 @@ const getNiftySignal = (price: number, rsi: number, high20Day: number): MarketSi
   }
   if (rsi >= 45 && rsi < 60) {
     return {
-      symbol: 'NIFTY50', name: 'Nifty 50 Index', price, rsi, rollingHigh: high20Day, type: 'INDEX',
+      symbol: 'NIFTY50', name: 'Nifty 50 Index', price, rsi, rollingHigh: high20Day, type: 'EQUITY',
       signal: 'YELLOW', action: "SIT TIGHT / SIP",
       reason: "Index is in a neutral momentum zone. Maintain existing SIPs, no lump sum deployment.",
       color: 'bg-amber-400'
     };
   }
   return {
-    symbol: 'NIFTY50', name: 'Nifty 50 Index', price, rsi, rollingHigh: high20Day, type: 'INDEX',
+    symbol: 'NIFTY50', name: 'Nifty 50 Index', price, rsi, rollingHigh: high20Day, type: 'EQUITY',
     signal: 'RED', action: "AVOID FRESH BUYS",
     reason: rsi >= 60 ? "Index momentum is overextended (RSI > 60)." : `Minor dip of ${dip.toFixed(1)}% is insufficient for entry.`,
     color: 'bg-rose-500'

@@ -29,12 +29,14 @@ export async function GET() {
       // Define tickers for different asset classes
       let tickers: string[] = [];
       if (symbol === 'XAU') {
-        tickers = ['XAUUSD=X', 'GC=F'];
+        tickers = ['GC=F'];
       } else if (symbol === 'XAG') {
-        tickers = ['XAGUSD=X', 'SI=F', 'XAG=F'];
+        tickers = ['SI=F'];
       } else if (symbol === 'NIFTY50') {
         // %5ENSEI is the URL encoded version of ^NSEI
         tickers = ['^NSEI'];
+      } else if (symbol === 'EDELWEISS_MIDCAP_DIRECT') {
+        tickers = ['0P0000XV5C.BO'];
       }
       
       const range = '1mo'; // 1 month is sufficient for 20-day high and RSI
@@ -81,15 +83,16 @@ export async function GET() {
     };
 
     // Execute fetches for Gold, Silver, and Nifty 50
-    const [gold, silver, nifty50] = await Promise.all([
+    const [gold, silver, nifty50, edelweissMidcapDirect] = await Promise.all([
       fetchMarketData('XAU'),
       fetchMarketData('XAG'),
-      fetchMarketData('NIFTY50')
+      fetchMarketData('NIFTY50'),
+      fetchMarketData('EDELWEISS_MIDCAP_DIRECT'),
     ]);
 
     console.log(gold, silver, nifty50);
 
-    return NextResponse.json({ gold, silver, nifty50 });
+    return NextResponse.json({ gold, silver, nifty50, edelweissMidcapDirect });
 
   } catch (error: any) {
     console.error('Price Fetch Error:', error);

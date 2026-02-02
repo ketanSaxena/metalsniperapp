@@ -32,6 +32,7 @@ type SignalType = 'GREEN' | 'YELLOW' | 'RED';
 interface MarketSignal {
   symbol: string;
   name: string;
+  subtitle?: string;
   price: number;
   rsi: number;
   rollingHigh: number;
